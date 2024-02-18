@@ -37,7 +37,7 @@ def gradient_descent(X, y, w, b, learning_rate, print_cost=True, number_of_itera
 
         if print_cost:
             cost = cost_function(X, y, w_temp, b_temp)
-            if i % 1000 == 0 and i > 0:
+            if i % 100 == 0 and i > 0:
                 cost_history.append(cost)
                 w_history.append(w_temp)
                 b_history.append(b_temp)
@@ -49,10 +49,8 @@ def predict(X, w, b):
     return linear_function(X, w, b)
 
 
-def linear_regression_model(X_train, y_train, X_test, y_test, learning_rate=0.5, print_cost=False,
+def linear_regression_model(X_train, y_train, X_test, y_test, initial_w=np.array([2.5]), initial_b=0.0, learning_rate=0.5, print_cost=False,
                             num_iterations=100):
-    initial_w = np.array([-2.5])
-    initial_b = 0.0
     print("Initial weights:", initial_w)
     w, b, cost_history, w_history, b_history = gradient_descent(X_train, y_train, initial_w, initial_b, learning_rate, print_cost, num_iterations)
 
@@ -81,11 +79,11 @@ def add_line(dj_dx, x1, y1, d, ax):
                 horizontalalignment='left', verticalalignment='top')
 
 
-def plt_gradients(X_train, y_train, f_compute_cost, w_start=-20, w_end=20, w_step=50, b_value=0.0):
+def plt_gradients(X_train, y_train, f_compute_cost, w_start=-20, w_end=20, w_step=50, b_value=0.0, w_initial=np.array([10])):
     #===============
     #  First subplot
     #===============
-    fig,ax = plt.subplots(1, 1, figsize=(12,4))
+    fig,ax = plt.subplots(1, 1, figsize=(14,8))
 
     # Print w vs cost to see minimum
     fix_b = b_value
@@ -96,6 +94,7 @@ def plt_gradients(X_train, y_train, f_compute_cost, w_start=-20, w_end=20, w_ste
         tmp_w = w_array[i].reshape(X_train.shape[1])
         cost[i] = f_compute_cost(X_train, y_train, tmp_w, fix_b)
     ax.plot(w_array, cost, linewidth=1)
+    ax.scatter(w_initial, f_compute_cost(X_train, y_train, w_initial, fix_b), color="r")
     ax.set_title("Cost vs w, with gradient; b set to 0")
     ax.set_ylabel('Cost')
     ax.set_xlabel('w')

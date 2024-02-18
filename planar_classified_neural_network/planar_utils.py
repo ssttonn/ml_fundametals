@@ -55,6 +55,66 @@ def load_planar_dataset():
 
     return X, Y
 
+def layer_sizes(X, y):
+    n_x = X.shape[0]
+    n_h = 4
+    n_y = y.shape[0]
+    layers = (n_x, n_h, n_y)
+    return layers
+
+
+def initialize_parameters(n_x, n_h, n_y):
+    np.random.seed(42)
+    W1 = np.random.rand(n_h, n_x) * 0.01
+    b1 = np.zeros((n_h, 1))
+    W2 = np.random.rand(n_y, n_h) * 0.01
+    b2 = np.zeros((n_y, 1))
+
+    parameters = {
+        "W1": W1,
+        "b1": b1,
+        "W2": W2,
+        "b2": b2
+    }
+
+    return parameters
+
+def forward_propagation(X, parameters):
+    W1 = parameters["W1"]
+    b1 = parameters["b1"]
+    W2 = parameters["W2"]
+    b2 = parameters["b2"]
+
+    Z1 = np.dot(W1, X) + b1
+    A1 = np.tanh(Z1)
+    Z2 = np.dot(W2, A1) + b2
+    A2 = sigmoid(Z2)
+    cache = {
+        "Z1": Z1,
+        "A1": A1,
+        "Z2": Z2,
+        "A2": A2
+    }
+    return cache
+
+
+def backward_propagation(parameters, cache, X, y):
+    m = X.shape[1]
+    W1 = parameters["W1"]
+    b1 = parameters["b1"]
+    W2 = parameters["W2"]
+    b2 = parameters["b2"]
+
+
+
+def compute_cost(A2, Y, parameters):
+    m = Y.shape[1]
+    loss = np.multiply(Y, np.log(A2)) + np.multiply(1 - Y, np.log(1 - A2))
+    cost = (-1/m) * np.sum(loss)
+    cost = float(np.squeeze(cost))
+    return cost
+
+
 def load_extra_datasets():
     N = 200
     noisy_circles = sklearn.datasets.make_circles(n_samples=N, factor=.5, noise=.3)
