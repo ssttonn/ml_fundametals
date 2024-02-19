@@ -28,6 +28,10 @@ def relu(Z):
     return r, dr
 
 
+def linear(Z):
+    return Z, 1
+
+
 def input_output_layer_sizes(X, y):
     return X.shape[0], y.shape[0]
 
@@ -38,7 +42,7 @@ def randomly_initialize_parameters(input_layer_sizes):
     for i, size in enumerate(input_layer_sizes):
         if i == 0:
             continue
-        W = np.random.rand(size, input_layer_sizes[i - 1])
+        W = np.random.rand(size, input_layer_sizes[i - 1]) * 0.01
         b = np.zeros((size, 1))
         parameters[f"W{i}"] = W
         parameters[f"b{i}"] = b
@@ -60,12 +64,14 @@ def randomly_initialize_parameters(input_layer_sizes):
 def forward_propagation(X, parameters, activations):
     cache = {}
 
+    new_parameters = parameters.copy()
+
     # Forward propagation
     for i, activation in enumerate(activations):
         i = i + 1
         A_last = X if i == 1 else cache[f"A{i-1}"]
-        W = parameters[f"W{i}"]
-        b = parameters[f"b{i}"]
+        W = new_parameters[f"W{i}"]
+        b = new_parameters[f"b{i}"]
         Z = np.dot(W, A_last) + b
         cache[f"Z{i}"] = Z
         cache[f"A{i}"] = activation(Z)[0]
@@ -158,10 +164,10 @@ def backward_propagation(X, Y, parameters, cache, activations):
 
 
 def update_parameters(parameters, grads, total_hidden_layer, learning_rate=1.2):
-    new_parameters = {}
+    new_parameters = parameters.copy()
     for i in range(1, total_hidden_layer + 1):
-        W = parameters[f"W{i}"]
-        b = parameters[f"b{i}"]
+        W = new_parameters[f"W{i}"]
+        b = new_parameters[f"b{i}"]
 
         dW = grads[f"dW{i}"]
         db = grads[f"db{i}"]
@@ -174,11 +180,10 @@ def update_parameters(parameters, grads, total_hidden_layer, learning_rate=1.2):
     return new_parameters
 
 
-
-def nn_model(X, y, layer_sizes, activations, number_of_iterations=10000, learning_rate=1.2, print_cost=False):
+def nn_model(X, y, layer_sizes, parameters, activations, number_of_iterations=10000, learning_rate=1.2, print_cost=False):
     assert len(layer_sizes) == len(activations) + 1
 
-    parameters = randomly_initialize_parameters(layer_sizes)
+    cost_history = []
     for i in range(number_of_iterations):
         cache = forward_propagation(X, parameters, activations)
         cost = compute_sigmoid_cost(cache[f"A{len(activations)}"], y)
@@ -188,12 +193,21 @@ def nn_model(X, y, layer_sizes, activations, number_of_iterations=10000, learnin
         if print_cost and i % 100 == 0:
             print("Cost after iteration %i: %f" %(i, cost))
 
-    return parameters
+        if i % 100 == 0:
+            cost_history.append(cost)
+
+    return parameters, cost_history
 
 
 def predict(parameters, activations, X, decision_rate=0.5):
     cache = forward_propagation(X, parameters, activations)
     return cache[f"A{len(activations)}"] > decision_rate
+
+
+def metrics(y, predictions, n_h):
+    print(f"Precision for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(1 - y, predictions.T)) * 100)} %")
+    print(f"Recall for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(y, 1 - predictions.T)) * 100)} %")
+    print(f"Accuracy for n_h={n_h}: {float((np.dot(y, predictions.T) + np.dot(1 - y, 1 - predictions.T)) / float(y.size) * 100)} %")
     # %%
 
 #%%
