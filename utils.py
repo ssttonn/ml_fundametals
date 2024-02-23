@@ -36,16 +36,18 @@ def input_output_layer_sizes(X, y):
     return X.shape[0], y.shape[0]
 
 
-def randomly_initialize_parameters(input_layer_sizes):
-    np.random.seed(42)
+def randomly_initialize_parameters(layer_dims):
+    np.random.seed(1)
     parameters = {}
-    for i, size in enumerate(input_layer_sizes):
-        if i == 0:
-            continue
-        W = np.random.rand(size, input_layer_sizes[i - 1]) * 0.01
-        b = np.zeros((size, 1))
-        parameters[f"W{i}"] = W
-        parameters[f"b{i}"] = b
+    L = len(layer_dims)            # number of layers in the network
+
+    for l in range(1, L):
+        parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) / np.sqrt(layer_dims[l-1]) #*0.01
+        parameters['b' + str(l)] = np.zeros((layer_dims[l], 1))
+
+        assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
+        assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
+
     return parameters
 
 # def randomly_initialize_parameters(input_layer_sizes):
@@ -68,13 +70,13 @@ def forward_propagation(X, parameters, activations):
 
     # Forward propagation
     for i, activation in enumerate(activations):
-        i = i + 1
-        A_last = X if i == 1 else cache[f"A{i-1}"]
-        W = new_parameters[f"W{i}"]
-        b = new_parameters[f"b{i}"]
+        l = i + 1
+        A_last = X if l == 1 else cache[f"A{l-1}"]
+        W = new_parameters[f"W{l}"]
+        b = new_parameters[f"b{l}"]
         Z = np.dot(W, A_last) + b
-        cache[f"Z{i}"] = Z
-        cache[f"A{i}"] = activation(Z)[0]
+        cache[f"Z{l}"] = Z
+        cache[f"A{l}"] = activation(Z)[0]
 
     return cache
 
@@ -101,9 +103,8 @@ def forward_propagation(X, parameters, activations):
 
 def compute_sigmoid_cost(A_last, Y):
     m = Y.shape[1]
-    loss = Y * np.log(A_last) + (1 - Y) * np.log(1 - A_last)
-    cost = - (1 / m) * np.sum(loss)
-    cost = float(np.squeeze(cost))
+    cost = (1./m) * (-np.dot(Y, np.log(A_last).T) - np.dot(1-Y, np.log(1-A_last).T))
+    cost = np.squeeze(cost)
     return cost
 
 
@@ -207,7 +208,7 @@ def predict(parameters, activations, X, decision_rate=0.5):
 def metrics(y, predictions, n_h):
     print(f"Precision for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(1 - y, predictions.T)) * 100)} %")
     print(f"Recall for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(y, 1 - predictions.T)) * 100)} %")
-    print(f"Accuracy for n_h={n_h}: {float((np.dot(y, predictions.T) + np.dot(1 - y, 1 - predictions.T)) / float(y.size) * 100)} %")
+    print(f"Accuracy for n_h={n_h}: {(float((np.dot(y, predictions.T) + np.dot(1 - y, 1 - predictions.T)) / float(y.size)) * 100)} %")
     # %%
 
 #%%
