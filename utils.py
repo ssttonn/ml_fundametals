@@ -196,7 +196,11 @@ def nn_model(X, y, layer_sizes, parameters, activations, number_of_iterations=10
 
         if i % 100 == 0:
             cost_history.append(cost)
-
+    
+    parameters["learning_rate"] = learning_rate
+    parameters["number_of_iterations"] = number_of_iterations
+    parameters["activations"] = activations
+    parameters["layer_sizes"] = layer_sizes
     return parameters, cost_history
 
 
@@ -204,11 +208,18 @@ def predict(parameters, activations, X, decision_rate=0.5):
     cache = forward_propagation(X, parameters, activations)
     return cache[f"A{len(activations)}"] > decision_rate
 
+from sklearn.metrics import confusion_matrix
 
-def metrics(y, predictions, n_h):
-    print(f"Precision for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(1 - y, predictions.T)) * 100)} %")
-    print(f"Recall for n_h={n_h}: {float((np.dot(y, predictions.T))/(np.dot(y, predictions.T) + np.dot(y, 1 - predictions.T)) * 100)} %")
-    print(f"Accuracy for n_h={n_h}: {(float((np.dot(y, predictions.T) + np.dot(1 - y, 1 - predictions.T)) / float(y.size)) * 100)} %")
+def metrics(y, predictions):
+    tn, fp, fn, tp = confusion_matrix(y, predictions).ravel()
+   
+    precision = tp / (tp + fp) * 100
+    recall = tp / (tp + fn) * 100
+    accuracy = (tp + tn) / (tp + tn + fp + fn) * 100
+
+    print(f"Precision: {precision} %")
+    print(f"Recall: {recall} %")
+    print(f"Accuracy: {accuracy} %")
     # %%
 
 #%%
