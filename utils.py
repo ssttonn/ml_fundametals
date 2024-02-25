@@ -2,6 +2,7 @@ import numpy as np
 import time
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def sigmoid(Z):
@@ -50,20 +51,52 @@ def randomly_initialize_parameters(layer_dims):
 
     return parameters
 
-# def randomly_initialize_parameters(input_layer_sizes):
-#     W1 = np.random.rand(4, 2) * 0.01
-#     b1 = np.zeros((4, 1))
-#     W2 = np.random.rand(1, 4) * 0.01
-#     b2 = np.zeros((1, 1))
-#     return {
-#         "W1": W1,
-#         "b1": b1,
-#         "W2": W2,
-#         "b2": b2
-#     }
+def zeros_initialize_parameters(layer_dims):
+    parameters = {}
+    L = len(layer_dims)            # number of layers in the network
+
+    for l in range(1, L):
+        parameters['W' + str(l)] = np.zeros((layer_dims[l], layer_dims[l-1]))
+        parameters['b' + str(l)] = np.zeros((layer_dims[l], 1))
+
+        assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
+        assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
+
+    return parameters
 
 
-def forward_propagation(X, parameters, activations):
+def xavier_initialize_parameters(layer_dims):
+    np.random.seed(1)
+    parameters = {}
+    L = len(layer_dims)            # number of layers in the network
+
+    for l in range(1, L):
+        parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) * np.sqrt(1 / layer_dims[l-1])
+        parameters['b' + str(l)] = np.zeros((layer_dims[l], 1))
+
+        assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
+        assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
+
+    return parameters
+
+
+def he_initialize_parameters(layer_dims):
+    np.random.seed(1)
+    parameters = {}
+    L = len(layer_dims)            # number of layers in the network
+
+    for l in range(1, L):
+        parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) * np.sqrt(2 / layer_dims[l-1])
+        parameters['b' + str(l)] = np.zeros((layer_dims[l], 1))
+
+        assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
+        assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
+
+    return parameters
+
+
+def forward_propagation(X, parameters, activations, keep_prob=1):
+    assert(keep_prob > 0 and keep_prob <= 1)
     cache = {}
 
     new_parameters = parameters.copy()
@@ -75,30 +108,17 @@ def forward_propagation(X, parameters, activations):
         W = new_parameters[f"W{l}"]
         b = new_parameters[f"b{l}"]
         Z = np.dot(W, A_last) + b
+        A = activation(Z)[0]
+        D = np.random.rand(A.shape[0], A.shape[1]) < keep_prob
+        if l < len(activations):
+            A = A * D
+            A = A / keep_prob
+            cache[f"D{l}"] = D
         cache[f"Z{l}"] = Z
-        cache[f"A{l}"] = activation(Z)[0]
+        cache[f"A{l}"] = A
+        
 
     return cache
-
-
-# def forward_propagation(X, parameters, activations):
-#     W1 = parameters["W1"]
-#     b1 = parameters["b1"]
-#     W2 = parameters["W2"]
-#     b2 = parameters["b2"]
-#
-#     Z1 = np.dot(W1, X) + b1
-#     A1 = tanh(Z1)[0]
-#     Z2 = np.dot(W2, A1) + b2
-#     A2 = sigmoid(Z2)[0]
-#
-#     cache = {
-#         "Z1": Z1,
-#         "A1": A1,
-#         "Z2": Z2,
-#         "A2": A2
-#     }
-#     return cache
 
 
 def compute_sigmoid_cost(A_last, Y):
@@ -108,29 +128,19 @@ def compute_sigmoid_cost(A_last, Y):
     return cost
 
 
-# def backward_propagation(X, Y, parameters, cache, activations):
-#     m = X.shape[1]
-#     W2 = parameters["W2"]
-#
-#     A1 = cache["A1"]
-#     A2 = cache["A2"]
-#
-#     dZ2 = A2 - Y
-#     dW2 = (1 / m) * np.dot(dZ2, A1.T)
-#     db2 = (1 / m) * np.sum(dZ2, axis=1, keepdims=True)
-#     dZ1 = np.dot(W2.T, dZ2) * (1 - np.power(A1, 2))
-#     dW1 = (1 / m) * np.dot(dZ1, X.T)
-#     db1 = (1 / m) * np.sum(dZ1, axis=1, keepdims=True)
-#
-#     grads = {
-#         "dW1": dW1,
-#         "db1": db1,
-#         "dW2": dW2,
-#         "db2": db2
-#     }
-#     return grads
+def compute_sigmoid_cost_with_regularization(A_last, Y, parameters, layer_dims, lamd):
+    m = Y.shape[1]
+    cost = compute_sigmoid_cost(A_last, Y)
+    if lamd == 0:
+        return cost
 
-def backward_propagation(X, Y, parameters, cache, activations):
+    L2_regularization_cost = 0
+    for i in range(1, len(layer_dims)):
+        L2_regularization_cost += np.sum(np.square(parameters[f"W{i}"]))
+    return cost + (lamd / (2 * m)) * L2_regularization_cost
+
+
+def backward_propagation(X, Y, parameters, cache, activations, lamd, keep_prob):
     cache = cache.copy()
     X = X.copy()
     grads = {}
@@ -148,14 +158,18 @@ def backward_propagation(X, Y, parameters, cache, activations):
         else:
             W_last = parameters[f"W{current_layer_number+1}"]
             dZ_last = dZs[f"dZ{current_layer_number+1}"]
-            dZ = np.dot(W_last.T, dZ_last) * activation(Z)[1]
+            dA = np.dot(W_last.T, dZ_last)
+            D = cache[f"D{current_layer_number}"]
+            dA = dA * D
+            dA = dA / keep_prob
+            dZ = dA * activation(Z)[1]
 
         if current_layer_number == 1:
             A_next = X
         else:
             A_next = cache[f"A{current_layer_number - 1}"]
-
-        dW = (1 / m) * np.dot(dZ, A_next.T)
+        
+        dW = (1 / m) * np.dot(dZ, A_next.T) + (lamd / m) * parameters[f"W{current_layer_number}"]
         db = (1 / m) * np.sum(dZ, axis=1, keepdims=True)
         dZs[f"dZ{current_layer_number}"] = dZ
         grads[f"dW{current_layer_number}"] = dW
@@ -181,14 +195,15 @@ def update_parameters(parameters, grads, total_hidden_layer, learning_rate=1.2):
     return new_parameters
 
 
-def nn_model(X, y, layer_sizes, parameters, activations, number_of_iterations=10000, learning_rate=1.2, print_cost=False):
+def nn_model(X, y, layer_sizes, parameters, activations, number_of_iterations=10000, learning_rate=1.2, print_cost=False, lamd=0, keep_prob=1):
     assert len(layer_sizes) == len(activations) + 1
 
     cost_history = []
     for i in range(number_of_iterations):
-        cache = forward_propagation(X, parameters, activations)
+        cache = forward_propagation(X, parameters, activations, keep_prob=keep_prob)
+        # cost = compute_sigmoid_cost_with_regularization(cache[f"A{len(activations)}"], y, parameters, layer_sizes, lamd)
         cost = compute_sigmoid_cost(cache[f"A{len(activations)}"], y)
-        grads = backward_propagation(X, y, parameters, cache, activations)
+        grads = backward_propagation(X, y, parameters, cache, activations, lamd=lamd, keep_prob=keep_prob)
         parameters = update_parameters(
             parameters, grads, total_hidden_layer=len(activations), learning_rate=learning_rate)
         if print_cost and i % 100 == 0:
@@ -220,6 +235,24 @@ def metrics(y, predictions):
     print(f"Precision: {precision} %")
     print(f"Recall: {recall} %")
     print(f"Accuracy: {accuracy} %")
+
+
+def plot_decision_boundary(model, X, y):
+    # Set min and max values and give it some padding
+    x_min, x_max = X[0, :].min() - 1, X[0, :].max() + 1
+    y_min, y_max = X[1, :].min() - 1, X[1, :].max() + 1
+    h = 0.01
+    # Generate a grid of points with distance h between them
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+    # Predict the function value for the whole grid
+    Z = model(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    # Plot the contour and training examples
+    plt.contourf(xx, yy, Z, cmap=plt.cm.Spectral)
+    plt.ylabel('x2')
+    plt.xlabel('x1')
+    plt.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.Spectral)
+    plt.show()
     # %%
 
 #%%
